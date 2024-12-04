@@ -17,7 +17,7 @@ const app = express();
 
 app.use(helmet());
 app.use(morgan("tiny"));
-app.use(cors({ origin: true }));
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname + "/public"));

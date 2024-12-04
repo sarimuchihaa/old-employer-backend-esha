@@ -1,3 +1,4 @@
+const { User, Endows } = require("../db");
 const { Op } = require("sequelize");
 const { sequelize, company, Reviews, Search } = require("../db");
 const verifyDomain = require("../config/verfiyDomain");
@@ -269,18 +270,6 @@ const getCompanyId = async (req, res, next) => {
   }
 };
 
-// const getDomainFromUrl = (url) => {
-//   const parsedUrl = parse(url);
-//   return parsedUrl.hostname; // Return only the domain part (e.g., 'example.com')
-// };
-
-// const isValidEmailDomain = (email, companyUrl) => {
-//   const emailDomain = email.split('@')[1]; // Get the domain from the email (e.g., 'example.com')
-//   const companyDomain = getDomainFromUrl(companyUrl); // Get the domain from the URL
-//   return emailDomain === companyDomain; // Check if both domains match
-// };
-
-// Helper function to validate email domain against web_url domain
 const isValidEmailDomain = (email, webUrl) => {
   const emailDomain = email.split('@')[1];
   const urlDomain = new URL(webUrl).hostname;
@@ -353,105 +342,6 @@ const companyVerify = async (req, res) => {
   }
 };
 
-// const companyVerify = async (req, res) => {
-//   try {
-//     const {
-//       body: { company_email, claim_by, designation, phone, verification_doc },
-//       user: { id: ownerId },
-//     } = req;
-
-//     // Verify if the email domain is valid
-//     const verify = await verifyDomain(company_email);
-//     if (!verify) {
-//       throw new Error("Email is not associated with a valid domain.");
-//     }
-
-//     // Update the company record and set it as unverified for now
-//     const updatedCompany = await company.update(
-//       {
-//         is_verified: false, // Set to false initially
-//         ownerId,
-//         verification_doc: verification_doc || null,
-//         email: company_email,
-//         claim_by: claim_by,
-//         phone: phone,
-//         designation: designation
-//       },
-//       { where: { id: req.query.id } } // Ensure you have company ID in query
-//     );
-
-//     if (!updatedCompany[0]) { // updatedCompany[0] should reflect the number of rows affected
-//       throw new Error("Failed to update company information.");
-//     }
-
-//     // Generate a verification token for the email
-//     const token = jwt.sign({ email: company_email }, process.env.JWT_SECRET, { expiresIn: "1h" });
-
-//     // Send verification email
-//     await sendVerificationEmail(company_email, token);
-
-//     res.status(200).send({ message: "A verification email has been sent." });
-//   } catch (err) {
-//     res.status(500).send({ message: err.message });
-//   }
-// };
-
-// const companyVerify = async (req, res) => {
-//   try {
-//     const {
-//       body: { company_email, claim_by, designation, phone, verification_doc },
-//       user: { id: ownerId },
-//     } = req;
-
-//     // Fetch the company from the database to get the web_url
-//     const companyRecord = await company.findOne({ where: { id: req.query.id } });
-
-//     if (!companyRecord) {
-//       throw new Error("Company not found.");
-//     }
-
-//     const companyUrl = companyRecord.web_url; // Get the web_url from the database
-
-//     // Verify if the email domain matches the company URL domain
-//     if (!isValidEmailDomain(company_email, companyUrl)) {
-//       throw new Error("Email domain does not match the company URL domain.");
-//     }
-
-//     // Verify if the email domain is valid (additional domain verification logic, if needed)
-//     const verify = await verifyDomain(company_email);
-//     if (!verify) {
-//       throw new Error("Email is not associated with a valid domain.");
-//     }
-
-//     // Update the company record and set it as unverified for now
-//     const updatedCompany = await company.update(
-//       {
-//         is_verified: false, // Set to false initially
-//         ownerId,
-//         verification_doc: verification_doc || null,
-//         email: company_email,
-//         claim_by: claim_by,
-//         phone: phone,
-//         designation: designation
-//       },
-//       { where: { id: req.query.id } } // Ensure you have company ID in query
-//     );
-
-//     if (!updatedCompany[0]) { // updatedCompany[0] should reflect the number of rows affected
-//       throw new Error("Failed to update company information.");
-//     }
-
-//     // Generate a verification token for the email
-//     const token = jwt.sign({ email: company_email }, process.env.JWT_SECRET, { expiresIn: "1h" });
-
-//     // Send verification email
-//     await sendVerificationEmail(company_email, token);
-
-//     res.status(200).send({ message: "A verification email has been sent." });
-//   } catch (err) {
-//     res.status(500).send({ message: err.message });
-//   }
-// };
 
 const verifyEmail = async (req, res) => {
   const { token } = req.query;
@@ -477,19 +367,46 @@ const verifyEmail = async (req, res) => {
   }
 };
 
+
+// getAllCompanies
 const getAllCompanies = async (req, res) => {
   try {
-    const companies = await company.findAll();
+    const companies = await company.findAll({
+      include: [
+        {
+          model: Reviews,
+          attributes: ['id', "emp_status", "emp_thougts", "is_verified", "verification_doc", "companyId", "review_by"],
+          include: [
+            {
+              model: User,
+              attributes: ['id', 'firstname', 'lastname', 'email'],
+            },
+          ],
+        },
+        {
+          model: Endows,
+          attributes: ['id', 'emp_thougts', 'companyId'], 
+          include: [
+            {
+              model: User,
+              attributes: ['id', 'firstname', 'lastname', 'email'],
+            },
+          ],
+        },
+      ],
+    });
 
     if (!companies || companies.length === 0) {
       return res.status(404).send({ message: "No companies found." });
     }
+
     res.status(200).json(companies);
   } catch (err) {
-    console.error("Error fetching companies:", err);
-    res.status(500).send({ message: "An error occurred while fetching companies." });
+    console.error("Error fetching companies with reviews:", err);  // Debugging.
+    res.status(500).send({ message: "Error occurred while fetching companies with reviews.", error: err.message });
   }
 };
+
 
 const deleteCompanyById = async (req, res) => {
   const { query: { id } } = req;

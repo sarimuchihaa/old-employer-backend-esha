@@ -80,7 +80,6 @@ router
 router
   .route("/company/all-companies")
   .get(
-    auth("superadmin"),
     // validate(companyValidation.getAllCompanies),
     companyController.getAllCompanies
   );
