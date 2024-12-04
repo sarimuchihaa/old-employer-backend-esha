@@ -373,16 +373,27 @@ const getAllCompanies = async (req, res) => {
   try {
     const companies = await company.findAll({
       include: [
+      {
+      model: Reviews,
+      attributes: ['id', "emp_status", "emp_thougts", "is_verified", "verification_doc", "companyId", "review_by", 
+      'compensation', "work_balance", "career_opportunities", "cutlers",
+      [
+        sequelize.literal(`(
+          SELECT 
+            COALESCE(AVG((compensation + work_balance + career_opportunities + cutlers) / 4), 0) 
+          FROM Reviews 
+          WHERE Reviews.companyId = company.id
+        )`),
+        'calculatedOverallRating',
+      ],
+    ],
+      include: [
         {
-          model: Reviews,
-          attributes: ['id', "emp_status", "emp_thougts", "is_verified", "verification_doc", "companyId", "review_by"],
-          include: [
-            {
-              model: User,
-              attributes: ['id', 'firstname', 'lastname', 'email'],
-            },
-          ],
+          model: User,
+          attributes: ['id', 'firstname', 'lastname', 'email'],
         },
+      ],
+      },
         {
           model: Endows,
           attributes: ['id', 'emp_thougts', 'companyId'], 
